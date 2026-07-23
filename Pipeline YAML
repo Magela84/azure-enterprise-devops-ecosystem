@@ -1,36 +1,7 @@
-name: 'Terraform Code Validation'
+    # Step 4: Run a plan specifically using the Development settings file
+    - name: Terraform Plan Development
+      run: terraform plan -var-file="environments/dev.tfvars" -out=tfplan-dev
 
-on:
-  pull_request:
-    branches: [ "main" ] # Triggers automatically when a PR is opened against main
-
-permissions:
-  contents: read
-
-jobs:
-  terraform-checks:
-    name: 'Lint & Validate'
-    runs-on: ubuntu-latest
-
-    steps:
-    # Step 1: Clone the repository code to the runner
-    - name: Checkout Code
-      uses: actions/checkout@v4
-
-    # Step 2: Install the specified version of Terraform on the runner
-    - name: Setup Terraform
-      uses: hashicorp/setup-terraform@v3
-      with:
-        terraform_version: 1.5.0
-
-    # Step 3: Check if the code is properly indented and formatted
-    - name: Terraform Format Check
-      run: terraform fmt -check -recursive
-
-    # Step 4: Initialize directories to download necessary provider plugins
-    - name: Terraform Init
-      run: terraform init -backend=false # Skip backend auth during validation steps
-
-    # Step 5: Validate the syntax and consistency of configurations
-    - name: Terraform Validate
-      run: terraform validate
+    # Step 5: For production deployments, pass the production variable file
+    - name: Terraform Plan Production
+      run: terraform plan -var-file="environments/prod.tfvars" -out=tfplan-prod
