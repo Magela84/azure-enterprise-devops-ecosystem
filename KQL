@@ -1,0 +1,21 @@
+// Monitor high CPU utilization on Virtual Machines
+AzureMetrics
+| where TimeGenerated > ago(1h)
+| where MetricName == "Percentage CPU"
+| summarize AverageCPU = avg(Average) by ResourceId, bin(TimeGenerated, 5m)
+| where AverageCPU > 85
+| project TimeGenerated, ResourceId, AverageCPU
+| order by TimeGenerated desc
+
+
+// Detect potential brute force scans or unauthorized access attempts
+AzureDiagnostics
+| where TimeGenerated > ago(30m)
+| where ResourceType == "NETWORKSECURITYGROUPS"
+| where Category == "NetworkSecurityGroupFlowEvent"
+| extend Action = extractjson("$.flows[0].flowTuples[0].action", DiagnosticRawData, typeof(string))
+| extend SrcIP  = extractjson("$.flows[0].flowTuples[0].srcIp", DiagnosticRawData, typeof(string))
+| where Action == "D" // "D" stands for Denied traffic
+| summarize BlockedCount = count() by SrcIP, Resource
+| where BlockedCount > 50 // Only alert if an IP gets blocked more than 50 times in 30 mins
+| order by BlockedCount desc
