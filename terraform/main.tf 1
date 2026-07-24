@@ -45,3 +45,65 @@ resource "azurerm_subnet_network_security_group_association" "nsg_bind" {
   subnet_id                 = azurerm_subnet.app_subnet.id
   network_security_group_id = azurerm_network_security_group.app_nsg.id
 }
+# 1. Create a Secure, Encrypted Storage Account
+resource "azurerm_storage_account" "app_storage" {
+  name                     = "stenterprise${var.environment}data01" # Must be globally unique
+  resource_group_name      = azurerm_resource_group.network_rg.name
+  location                 = azurerm_resource_group.network_rg.location
+  account_tier             = "Standard"
+  account_replication_type = "LRS" # Locally Redundant Storage for cost efficiency
+
+  # Enforce corporate security compliance
+  enable_https_traffic_only       = true
+  min_tls_version                 = "TLS1_2"
+  public_network_access_enabled   = false # Blocks all traffic from the public internet
+
+  tags = {
+    Environment = var.environment
+    ManagedBy   = "Terraform"
+  }
+}
+
+# 2. Create a Virtual Network Interface Card (NIC) for the VM
+resource "azurerm_network_interface" "vm_nic" {
+  name                = "nic-${var.environment}-appvm"
+  location            = azurerm_resource_group.network_rg.location
+  resource_group_name = azurerm_resource_group.network_rg.name
+
+  ip_configuration {
+    name                          = "internal"
+    subnet_id                     = azurerm_subnet.app_subnet.id # Plugs the VM into your subnet
+    private_ip_address_allocation = "Dynamic"
+  }
+}
+
+# 3. Create the Ubuntu Linux Virtual Machine
+resource "azurerm_linux_virtual_machine" "app_vm" {
+  name                = "vm-${var.environment}-appserver"
+  resource_group_name = azurerm_resource_group.network_rg.name
+  location            = azurerm_resource_group.network_rg.location
+  size                = "Standard_B1s" # Cheapest tier, perfect for portfolio testing
+  admin_username      = "cloudadmin"
+
+  network_interface_ids = [
+    azurerm_network_interface.vm_nic.id,
+  ]
+
+  # Configures standard security keys instead of weak passwords
+  admin_ssh_key {
+    username   = "cloudadmin"
+    public_key = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC3M3...examplekey..." # Placeholder key
+  }
+
+  os_disk {
+    caching              = "ReadWrite"
+    storage_account_type = "Standard_LRS"
+  }
+
+  source_image_reference {
+    publisher = "Canonical"
+    offer     = "0001-com-ubuntu-server-jammy"
+    sku       = "22_04-lts"
+    version   = "latest"
+  }
+}
