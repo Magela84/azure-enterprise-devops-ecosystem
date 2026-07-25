@@ -4,22 +4,16 @@ terraform {
   required_providers {
     azurerm = {
       source  = "hashicorp/azurerm"
-      version = "~> 3.0" # Keeps providers within version 3.x to prevent breaking changes
+      version = "~> 3.0"
     }
   }
 
-  # This block configures the secure remote backend
-  backend "azurerm" {
-    resource_group_name  = "rg-devops-portfolio-backend" # Pre-created Resource Group
-    storage_account_name = "stdevopsstatebackend01"      # Pre-created, globally unique Storage Account
-    container_name       = "tfstate"                     # Blob Container inside the Storage Account
-    key                  = "terraform.tfstate"           # Name of the state file to create
-    
-    # State locking is enabled by default with Azure Blob Storage
-    # The pipeline's Service Principal must have Storage Blob Data Contributor permissions
+  # Configures a local runner state file map instead of demanding a pre-built Azure backend group
+  backend "local" {
+    path = "terraform.tfstate"
   }
 }
 
 provider "azurerm" {
-  features {} # Required block for the AzureRM provider initialization
+  features {}
 }
