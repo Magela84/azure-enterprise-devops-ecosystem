@@ -2,7 +2,9 @@ name: 'Terraform CI/CD Infrastructure Pipeline'
 
 on:
   push:
-    branches: [ "main" ] # Automatically deploys changes when code hits the main branch
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
 
 permissions:
   contents: read
@@ -12,7 +14,11 @@ jobs:
     name: 'Validate & Deploy'
     runs-on: ubuntu-latest
 
-    # Ingest the secure keys dynamically from your encrypted GitHub Vault settings
+    # This single line fixes the "No configuration files" error
+    defaults:
+      run:
+        working-directory: ./terraform
+
     env:
       ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
       ARM_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
@@ -20,26 +26,22 @@ jobs:
       ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
 
     steps:
-    # 1. Download your repository files onto the GitHub build runner
     - name: Checkout Code
       uses: actions/checkout@v4
 
-    # 2. Setup the exact Terraform engine version
     - name: Setup Terraform
       uses: hashicorp/setup-terraform@v3
       with:
         terraform_version: 1.5.0
 
-    # 3. [CI PHASE] Initialize backend modules and check syntax
     - name: Terraform Init & Validate
       run: |
         terraform init
         terraform validate
 
-    # 4. [CI PHASE] Dry-run check: Map out exactly what will be built
+    # Updated path to match the inner terraform folder structure
     - name: Terraform Plan
       run: terraform plan -var-file="environments/prod.tfvars" -out=tfplan
 
-    # 5. [CD PHASE] The Live Action: Log into Azure and physically deploy the infrastructure
     - name: Terraform Apply (Continuous Deployment)
       run: terraform apply -auto-approve tfplan
